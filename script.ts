@@ -22,7 +22,7 @@
         const buttonList: NodeListOf<HTMLElement> = document.querySelectorAll(".gbutton, .abutton");
         const buttonArray = Array.from(buttonList);
 
-        buttonArray.forEach(element => {
+        buttonArray.reverse().forEach(element => {
             element.click();
         });
     }
