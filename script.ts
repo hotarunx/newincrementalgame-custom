@@ -10,7 +10,9 @@
 
 (() => {
     function clickAnyButton() {
+        // confirm, alertを無視する
         confirm = () => true;
+        alert = () => true;
 
         const rButton: HTMLElement | null = document.querySelector("#levelreset > button");
         if (rButton != null) {

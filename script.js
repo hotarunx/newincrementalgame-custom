@@ -10,7 +10,9 @@
 // ==/UserScript==
 (() => {
     function clickAnyButton() {
+        // confirm, alertを無視する
         confirm = () => true;
+        alert = () => true;
         const rButton = document.querySelector("#levelreset > button");
         if (rButton != null) {
             rButton.click();
