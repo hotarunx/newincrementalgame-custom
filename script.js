@@ -9,8 +9,8 @@
 // @grant           none
 // ==/UserScript==
 (() => {
-    confirm = () => true;
     function clickAnyButton() {
+        confirm = () => true;
         const rButton = document.querySelector("#levelreset > button");
         if (rButton != null) {
             rButton.click();
@@ -26,9 +26,13 @@
             aimButton.click();
         }
     }
-    const coinamount = document.querySelector("#coinamount");
-    if (coinamount != null) {
-        coinamount.addEventListener("DOMNodeInserted", clickAnyButton);
-    }
-    clickAnyButton();
+    const container = window.document.getElementById("app");
+    const app = container.__vue_app__;
+    const ctx = app._instance.ctx;
+    const _update = ctx.update.bind(ctx);
+    const update = () => {
+        _update();
+        clickAnyButton();
+    };
+    ctx.update = update;
 })();
