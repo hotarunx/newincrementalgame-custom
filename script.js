@@ -9,7 +9,7 @@
 // @grant           none
 // ==/UserScript==
 (() => {
-    function clickAnyButton() {
+    function clickAllButton() {
         // confirm, alertを無視する
         confirm = () => true;
         alert = () => true;
@@ -17,16 +17,11 @@
         if (rButton != null) {
             rButton.click();
         }
-        const gButtons = document.querySelectorAll(".gbutton, .abutton");
-        let aimButton = gButtons[0];
-        gButtons.forEach(element => {
-            if (element.className.indexOf("unavailable") < 0) {
-                aimButton = element;
-            }
+        const buttonList = document.querySelectorAll(".gbutton, .abutton");
+        const buttonArray = Array.from(buttonList);
+        buttonArray.forEach(element => {
+            element.click();
         });
-        if (aimButton.className.indexOf("unavailable") < 0) {
-            aimButton.click();
-        }
     }
     const container = window.document.getElementById("app");
     const app = container.__vue_app__;
@@ -34,7 +29,7 @@
     const _update = ctx.update.bind(ctx);
     const update = () => {
         _update();
-        clickAnyButton();
+        clickAllButton();
     };
     ctx.update = update;
 })();
