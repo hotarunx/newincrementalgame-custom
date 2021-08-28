@@ -1,13 +1,3 @@
-// ==UserScript==
-// @name            新しい放置ゲーム自作自動購入機
-// @namespace       https://github.com/hotarunx
-// @homepage        https://github.com/hotarunx/nig-auto-buy-bot
-// @version         0.0.1
-// @author          hotarunx
-// @match           https://dem08656775.github.io/newincrementalgame/
-// @grant           none
-// ==/UserScript==
-
 (() => {
     // すべての発生器購入・時間加速器購入・段位リセットボタンを押す
     function clickAllButton() {

@@ -1,12 +1,14 @@
-"use strict";
 // ==UserScript==
-// @name            新しい放置ゲーム自作自動購入機
-// @namespace       https://github.com/hotarunx
-// @homepage        https://github.com/hotarunx/nig-auto-buy-bot
-// @version         0.0.1
-// @author          hotarunx
-// @match           https://dem08656775.github.io/newincrementalgame/
-// @grant           none
+// @name         newincrementalgame-custom
+// @namespace    https://github.com/hotarunx
+// @version      1.0.0
+// @description  新しい放置ゲーム(1).fileを改造する。
+// @author       hotarunx
+// @license      MIT
+// @supportURL   https://github.com/hotarunx/newincrementalgame-custom/issues
+// @match        https://dem08656775.github.io/newincrementalgame/
+// @grant        none
+// @require      https://cdnjs.cloudflare.com/ajax/libs/push.js/1.0.12/push.min.js
 // ==/UserScript==
 (() => {
     // すべての発生器購入・時間加速器購入・段位リセットボタンを押す
