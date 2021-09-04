@@ -161,34 +161,40 @@
     function addNotice() {
         const levelrcontents = document.getElementsByClassName('levelrcontents')[0];
         const rankrcontents = document.getElementsByClassName('rankrcontents')[0];
-        levelrcontents.addEventListener('DOMNodeInserted', () => {
-            const lNoticeButton = document.getElementsByClassName(noticeButtonClass)[2];
-            if (lNoticeButton.classList.contains('selected')) {
-                /* eslint-disable @typescript-eslint/no-unsafe-member-access, @typescript-eslint/ban-ts-comment */
-                // @ts-ignore
-                Push.create('昇段リセットしました。');
-                /* eslint-enable @typescript-eslint/no-unsafe-member-access, @typescript-eslint/ban-ts-comment */
-            }
-        });
-        rankrcontents.addEventListener('DOMNodeInserted', () => {
-            const rNoticeButton = document.getElementsByClassName(noticeButtonClass)[2];
-            if (rNoticeButton.classList.contains('selected')) {
-                /* eslint-disable @typescript-eslint/no-unsafe-member-access, @typescript-eslint/ban-ts-comment */
-                // @ts-ignore
-                Push.create('昇階リセットしました。');
-                /* eslint-enable @typescript-eslint/no-unsafe-member-access, @typescript-eslint/ban-ts-comment */
-            }
-        });
+        if (levelrcontents !== undefined) {
+            levelrcontents.addEventListener('DOMNodeInserted', () => {
+                const lNoticeButton = document.getElementsByClassName(noticeButtonClass)[2];
+                if (lNoticeButton.classList.contains('selected')) {
+                    /* eslint-disable @typescript-eslint/no-unsafe-member-access, @typescript-eslint/ban-ts-comment */
+                    // @ts-ignore
+                    Push.create('昇段リセットしました。');
+                    /* eslint-enable @typescript-eslint/no-unsafe-member-access, @typescript-eslint/ban-ts-comment */
+                }
+            });
+        }
+        if (rankrcontents !== undefined) {
+            rankrcontents.addEventListener('DOMNodeInserted', () => {
+                const rNoticeButton = document.getElementsByClassName(noticeButtonClass)[2];
+                if (rNoticeButton.classList.contains('selected')) {
+                    /* eslint-disable @typescript-eslint/no-unsafe-member-access, @typescript-eslint/ban-ts-comment */
+                    // @ts-ignore
+                    Push.create('昇階リセットしました。');
+                    /* eslint-enable @typescript-eslint/no-unsafe-member-access, @typescript-eslint/ban-ts-comment */
+                }
+            });
+        }
     }
     /** 昇階リセット後に自動昇段リセットボタンを押下状態に */
     function enableLevelResetDiv() {
         const levelrcontents = document.getElementsByClassName('levelrcontents')[0];
-        levelrcontents.addEventListener('DOMNodeInserted', () => {
-            const rBuyerButton = document.getElementsByClassName(buyerButtonClass)[2];
-            const autoEnableLevelResetClassButton = document.getElementsByClassName(autoEnableLevelResetClass)[0];
-            if (autoEnableLevelResetClassButton.classList.contains('selected')) {
-                rBuyerButton.classList.add('selected');
-            }
-        });
+        if (levelrcontents !== undefined) {
+            levelrcontents.addEventListener('DOMNodeInserted', () => {
+                const rBuyerButton = document.getElementsByClassName(buyerButtonClass)[2];
+                const autoEnableLevelResetClassButton = document.getElementsByClassName(autoEnableLevelResetClass)[0];
+                if (autoEnableLevelResetClassButton.classList.contains('selected')) {
+                    rBuyerButton.classList.add('selected');
+                }
+            });
+        }
     }
 })();
