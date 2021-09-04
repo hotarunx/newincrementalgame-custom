@@ -24,6 +24,7 @@
     addMyAutoBuyerButton();
     enableLevelResetDiv();
     addNotice();
+    addWikiLink();
     /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/ban-ts-comment, @typescript-eslint/no-unsafe-call */
     // @ts-ignore
     // vueインスタンスのctx取得
@@ -33,6 +34,34 @@
     ctx.update = () => {
         _update();
         runBuyer();
+    };
+    const _resetLevel = ctx.resetLevel.bind(ctx);
+    ctx.resetLevel = () => {
+        const bonuses = Array.from(ctx.player.challengebonuses);
+        const bonusesReset = [4, 8, 12, 0, 1];
+        for (const i of bonuses)
+            ctx.buyRewards(i);
+        for (const i of bonusesReset)
+            ctx.buyRewards(i);
+        _resetLevel();
+        for (const i of bonusesReset)
+            ctx.buyRewards(i);
+        for (const i of bonuses)
+            ctx.buyRewards(i);
+    };
+    const _resetRank = ctx.resetRank.bind(ctx);
+    ctx.resetRank = () => {
+        const bonuses = Array.from(ctx.player.challengebonuses);
+        const bonusesReset = [0, 1, 4, 8, 12];
+        for (const i of bonuses)
+            ctx.buyRewards(i);
+        for (const i of bonusesReset)
+            ctx.buyRewards(i);
+        _resetRank();
+        for (const i of bonusesReset)
+            ctx.buyRewards(i);
+        for (const i of bonuses)
+            ctx.buyRewards(i);
     };
     /* eslint-enable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/ban-ts-comment */
     // すべての発生器購入・時間加速器購入・段位リセットボタンを押す
@@ -66,18 +95,24 @@
         }
         // 時間加速器
         if (accBuyerButton.classList.contains('selected')) {
+            const buttons = document.getElementsByClassName('abutton');
             // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
             for (let i = ctx.player.accelerators.length - 1; i >= 0; i--) {
-                // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-                ctx.buyAccelerator(i);
+                if (i < buttons.length && !buttons[i].classList.contains('unavailable')) {
+                    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+                    ctx.buyAccelerator(i);
+                }
             }
         }
         // 発生器
         if (genBuyerButton.classList.contains('selected')) {
+            const buttons = document.getElementsByClassName('gbutton');
             // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
             for (let i = ctx.player.generators.length - 1; i >= 0; i--) {
-                // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-                ctx.buyGenerator(i);
+                if (i < buttons.length && !buttons[i].classList.contains('unavailable')) {
+                    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+                    ctx.buyGenerator(i);
+                }
             }
         }
         /* eslint-disable no-global-assign, @typescript-eslint/ban-ts-comment */
@@ -147,13 +182,13 @@
             }
             additionalDiv.appendChild(noticeButtonDiv);
             /** 昇階リセット後自動昇段リセット有効ボタン領域 */
-            const autoEnableRankResetDiv = document.createElement('div');
-            autoEnableRankResetDiv.appendChild(document.createTextNode('昇階リセット後自動昇段リセット設定'));
+            const autoEnableLevelResetDiv = document.createElement('div');
+            autoEnableLevelResetDiv.appendChild(document.createTextNode('昇階リセット後自動昇段リセット設定'));
             {
                 const b = createBuyerButton('変更', autoEnableLevelResetClass, null);
-                autoEnableRankResetDiv.appendChild(b);
+                autoEnableLevelResetDiv.appendChild(b);
             }
-            additionalDiv.appendChild(autoEnableRankResetDiv);
+            additionalDiv.appendChild(autoEnableLevelResetDiv);
             autoTab.appendChild(additionalDiv);
         }
     }
@@ -174,7 +209,7 @@
         }
         if (rankrcontents !== undefined) {
             rankrcontents.addEventListener('DOMNodeInserted', () => {
-                const rNoticeButton = document.getElementsByClassName(noticeButtonClass)[2];
+                const rNoticeButton = document.getElementsByClassName(noticeButtonClass)[3];
                 if (rNoticeButton.classList.contains('selected')) {
                     /* eslint-disable @typescript-eslint/no-unsafe-member-access, @typescript-eslint/ban-ts-comment */
                     // @ts-ignore
@@ -186,15 +221,27 @@
     }
     /** 昇階リセット後に自動昇段リセットボタンを押下状態に */
     function enableLevelResetDiv() {
-        const levelrcontents = document.getElementsByClassName('levelrcontents')[0];
-        if (levelrcontents !== undefined) {
-            levelrcontents.addEventListener('DOMNodeInserted', () => {
-                const rBuyerButton = document.getElementsByClassName(buyerButtonClass)[2];
+        const rankrcontents = document.getElementsByClassName('rankrcontents')[0];
+        if (rankrcontents !== undefined) {
+            rankrcontents.addEventListener('DOMNodeInserted', () => {
+                const lBuyerButton = document.getElementsByClassName(buyerButtonClass)[2];
                 const autoEnableLevelResetClassButton = document.getElementsByClassName(autoEnableLevelResetClass)[0];
                 if (autoEnableLevelResetClassButton.classList.contains('selected')) {
-                    rBuyerButton.classList.add('selected');
+                    lBuyerButton.classList.add('selected');
                 }
             });
+        }
+    }
+    function addWikiLink() {
+        const container = document.getElementsByClassName('container')[0];
+        if (container != null) {
+            const div = document.createElement('div');
+            const link = document.createElement('a');
+            link.href = 'https://w.atwiki.jp/newincrementalgame/';
+            link.textContent = '新しい放置ゲーム(1).file【8/24更新】 | newincrementalgame';
+            link.style.color = 'skyblue';
+            div.appendChild(link);
+            container.appendChild(div);
         }
     }
 })();
