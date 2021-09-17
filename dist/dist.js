@@ -36,14 +36,16 @@
         runBuyer();
     };
     const _resetLevel = ctx.resetLevel.bind(ctx);
-    ctx.resetLevel = () => {
+    // @ts-ignore
+    ctx.resetLevel = (force, exit) => {
         const bonuses = Array.from(ctx.player.challengebonuses);
         const bonusesReset = [4, 8, 12, 0, 1];
         for (const i of bonuses)
             ctx.buyRewards(i);
         for (const i of bonusesReset)
             ctx.buyRewards(i);
-        _resetLevel();
+        // @ts-ignore
+        _resetLevel(force, exit);
         for (const i of bonusesReset)
             ctx.buyRewards(i);
         for (const i of bonuses)
