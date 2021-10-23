@@ -67,11 +67,12 @@
 
         const genBuyerButton = document.getElementsByClassName(buyerButtonClass)[0];
         const accBuyerButton = document.getElementsByClassName(buyerButtonClass)[1];
-        const lBuyerButton = document.getElementsByClassName(buyerButtonClass)[2];
-        const rBuyerButton = document.getElementsByClassName(buyerButtonClass)[3];
+        const levelResetBuyerButton = document.getElementsByClassName(buyerButtonClass)[2];
+        const rankResetBuyerButton = document.getElementsByClassName(buyerButtonClass)[3];
+        const levelItemBuyerButton = document.getElementsByClassName(buyerButtonClass)[4];
 
         // 昇階リセット
-        if (rBuyerButton.classList.contains('selected')) {
+        if (rankResetBuyerButton.classList.contains('selected')) {
             const rBuyButton: HTMLElement | null = document.querySelector('#rankreset > button');
             if (rBuyButton != null) {
                 rBuyButton.click();
@@ -79,10 +80,23 @@
         }
 
         // 昇段リセット
-        if (lBuyerButton.classList.contains('selected')) {
+        if (levelResetBuyerButton.classList.contains('selected')) {
             const lBuyButton: HTMLElement | null = document.querySelector('#levelreset > button');
             if (lBuyButton != null) {
                 lBuyButton.click();
+            }
+        }
+
+        // 段位捧所
+        if (levelItemBuyerButton.classList.contains('selected')) {
+            const buttons = document.getElementsByClassName('lbutton');
+
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+            for (let i = 5 - 1; i >= 0; i--) {
+                if (i < buttons.length && !buttons[i].classList.contains('unavailable')) {
+                    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+                    ctx.buylevelitems(i);
+                }
             }
         }
 
@@ -94,6 +108,9 @@
             for (let i = ctx.player.accelerators.length - 1; i >= 0; i--) {
                 if (i < buttons.length && !buttons[i].classList.contains('unavailable')) {
                     // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+                    ctx.buyAccelerator(i);
+                    ctx.buyAccelerator(i);
+                    ctx.buyAccelerator(i);
                     ctx.buyAccelerator(i);
                 }
             }
@@ -107,6 +124,9 @@
             for (let i = ctx.player.generators.length - 1; i >= 0; i--) {
                 if (i < buttons.length && !buttons[i].classList.contains('unavailable')) {
                     // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+                    ctx.buyGenerator(i);
+                    ctx.buyGenerator(i);
+                    ctx.buyGenerator(i);
                     ctx.buyGenerator(i);
                 }
             }
@@ -147,7 +167,7 @@
     function addMyAutoBuyerButton() {
         // 自動タブのdiv要素を取得する
         // autoTabStringのテキストを含むdivを自動タブと判定する
-        const autoTabString = '自動購入機設定';
+        const autoTabString = '自動購入器設定';
 
         const container = document.getElementsByClassName('container')[0];
         if (container === null) return;
@@ -164,12 +184,13 @@
             additionalDiv.appendChild(document.createElement('br'));
             additionalDiv.appendChild(document.createTextNode('自作自動購入機設定'));
 
-            const labels = ['発生器', '加速器', '段位リセット', '階位リセット'];
+            const labels = ['発生器', '加速器', '段位リセット', '階位リセット', '段位効力'];
+            const n_labels = labels.length;
 
             /** 購入機有効ボタン領域 */
             const buyerButtonDiv = document.createElement('div');
             buyerButtonDiv.appendChild(document.createTextNode('自動購入設定'));
-            for (let i = 0; i < 4; i++) {
+            for (let i = 0; i < n_labels; i++) {
                 const b = createBuyerButton(labels[i], buyerButtonClass, i);
                 buyerButtonDiv.appendChild(b);
             }
@@ -178,7 +199,7 @@
             /** 購入機通知ボタン領域 */
             const noticeButtonDiv = document.createElement('div');
             noticeButtonDiv.appendChild(document.createTextNode('通知設定'));
-            for (let i = 0; i < 4; i++) {
+            for (let i = 0; i < n_labels; i++) {
                 const b = createBuyerButton(labels[i], noticeButtonClass, i);
                 if (i < 2) {
                     b.hidden = true;
