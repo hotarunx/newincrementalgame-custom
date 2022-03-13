@@ -1,339 +1,652 @@
-(() => {
-  // sessionStorageのプレフィックス
-  const keyPrefix = "hotarunx/newincrementalgame-custom_";
+// ==UserScript==
+// @name         newincrementalgame-custom
+// @namespace    https://github.com/hotarunx
+// @version      1.0.0
+// @description  ツイートボタンの埋め込みテキストに情報を追加します
+// @author       hotarunx
+// @match        https://dem08656775.github.io/newincrementalgame/
+// @grant        GM_addStyle
+// @require      https://cdnjs.cloudflare.com/ajax/libs/push.js/1.0.12/push.min.js
+// ==/UserScript==
 
-  // 自作自動購入機機能
-  /** 購入機有効ボタンクラス */
-  const buyerButtonClass = "custom-buyer-button";
-  /** 購入機通知ボタンクラス */
-  const noticeButtonClass = "custom-notice-button";
-  /** 昇階リセット後自動昇段リセット有効ボタンクラス */
-  const autoEnableLevelResetClass = "custom-auto-enable-level-reset";
+"use strict";
 
-  // DOM編集
-  addMyAutoBuyerButton();
-  addNotice();
-  addWikiLink();
+/** localStorageのプレフィックス */
+const keyPrefix = "hotarunx/newincrementalgame-custom/";
 
-  /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/ban-ts-comment, @typescript-eslint/no-unsafe-call */
-  // @ts-ignore
-  // vueインスタンスのctx取得
-  function getCtx() {
-    // @ts-ignore
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
-    return document.getElementById("app").__vue_app__._instance.ctx;
+/** localStorageのKey集合 */
+const lsKey = {
+  lastCurrentWorld: keyPrefix + "lastCurrentWorld",
+  lastCurrentTab: keyPrefix + "lastCurrentTab",
+  generateButtonKey: function (name: string, index: number | null = null) {
+    const key = keyPrefix + "/" + name + "/" + (index ?? 0).toString();
+    return key;
+  },
+} as const;
+
+class Buttons {
+  /** 発生器購入ボタン */
+  generator;
+  /** 裏発生器購入ボタン */
+  darkGenerator;
+  /** 時間加速器購入ボタン */
+  accelerator;
+  /** 段位アイテム購入ボタン */
+  levelItem;
+  自動購入;
+  輝き消費;
+  自動段位リセット;
+  自動段位リセットIF;
+  自動階位リセット;
+  自動階位リセットIF;
+  自動階位稼ぎ;
+  自動階位稼ぎIF;
+  効力自動設定;
+  挑戦自動開始;
+  挑戦自動開始TA;
+  constructor() {
+    this.generator = document.querySelectorAll(".generator > button.gbutton");
+    this.darkGenerator = document.querySelectorAll(
+      ".darkgenerator > button.gbutton"
+    );
+    this.accelerator = document.querySelectorAll("button.abutton");
+    this.levelItem = document.querySelectorAll("button.lbutton");
+    this.自動購入 = document.getElementsByClassName("自動購入");
+    this.輝き消費 = document.getElementsByClassName("輝き消費");
+    this.自動段位リセット = document.getElementsByClassName("自動段位リセット");
+    this.自動段位リセットIF =
+      document.getElementsByClassName("自動段位リセットIF");
+    this.自動階位リセット = document.getElementsByClassName("自動階位リセット");
+    this.自動階位リセットIF =
+      document.getElementsByClassName("自動階位リセットIF");
+    this.自動階位稼ぎ = document.getElementsByClassName("自動階位稼ぎ");
+    this.自動階位稼ぎIF = document.getElementsByClassName("自動階位稼ぎIF");
+    this.効力自動設定 = document.getElementsByClassName("効力自動設定");
+    this.挑戦自動開始 = document.getElementsByClassName("挑戦自動開始");
+    this.挑戦自動開始TA = document.getElementsByClassName("挑戦自動開始TA");
   }
-  const ctx = getCtx();
-  // メソッド更新
+}
+
+/**
+ * ボタンが選択されているか
+ */
+function buttonSelected(buttons: NodeList | HTMLCollection) {
+  let selected = false;
+  for (let i = 0; i < buttons.length; i++) {
+    const element = buttons[i] as HTMLButtonElement;
+    if (element.classList.contains("selected")) {
+      selected = true;
+    }
+  }
+  return selected;
+}
+
+let thisButtons: Buttons;
+
+/** ゲームのインスタンス */
+const ctx = (() => {
+  const app = document.getElementById("app") as any;
+  return app.__vue_app__._instance.ctx;
+})();
+// @ts-ignore
+// eslint-disable-next-line no-undef
+ctx0 = ctx;
+// デバッグで触るよう
+
+/**
+ * alert関数を無視する 一時的に別の関数に置き換える
+ */
+function ignoreAlert(f: () => void) {
+  // confirm, alertを無視する
+  // eslint-disable-next-line no-unused-vars
+  const confirmOrg = confirm;
+  // eslint-disable-next-line no-unused-vars
+  const alertOrg = alert;
+
+  // @ts-ignore
+  // eslint-disable-next-line no-global-assign
+  confirm = () => true;
+  // @ts-ignore
+  // eslint-disable-next-line no-global-assign
+  alert = () => true;
+
+  f();
+
+  // @ts-ignore
+  // eslint-disable-next-line no-global-assign
+  confirm = confirmOrg;
+  // @ts-ignore
+  // eslint-disable-next-line no-global-assign
+  alert = alertOrg;
+}
+
+// メイン処理
+window.addEventListener("load", function () {
+  // 最初に実行する処理を実行
+  initialProcess();
+
+  // 処理を定期実行するよう設定
+  setInterval(intervalProcess, 100);
+
+  // updateメソッド修正
   const _update = ctx.update.bind(ctx);
   ctx.update = () => {
+    updateBefore();
     _update();
-    runBuyer();
-
-    if (ctx.player.money.toNumber() > 1e80) {
-      ctx.resetLevel();
-      console.log(ctx.player.money.toNumber());
-    }
+    updateAfter();
   };
 
+  // resetLevel（段位リセット）メソッド修正
   const _resetLevel = ctx.resetLevel.bind(ctx);
   // @ts-ignore
   ctx.resetLevel = (force, exit) => {
-    const bonuses: number[] = Array.from(ctx.player.challengebonuses);
-    // const bonusesReset: number[] = [0, 1, 4, 8];
-    const bonusesReset: number[] = [0, 1, 4, 8, 12];
-    for (const i of bonuses) ctx.buyRewards(i);
-    for (const i of bonusesReset) ctx.buyRewards(i);
-    // @ts-ignore
+    resetLevelBefore();
     _resetLevel(force, exit);
-    for (const i of bonusesReset) ctx.buyRewards(i);
-    for (const i of bonuses) ctx.buyRewards(i);
-    autoEarningLevelReset();
+    resetLevelAfter();
   };
 
+  // resetRank（階位リセット）メソッド修正
   const _resetRank = ctx.resetRank.bind(ctx);
-  ctx.resetRank = () => {
-    const bonuses: number[] = Array.from(ctx.player.challengebonuses);
-    // const bonusesReset: number[] = [0, 1, 4, 8];
-    const bonusesReset: number[] = [0, 1, 4, 8, 12];
-    for (const i of bonuses) ctx.buyRewards(i);
-    for (const i of bonusesReset) ctx.buyRewards(i);
-    _resetRank();
-    for (const i of bonusesReset) ctx.buyRewards(i);
-    for (const i of bonuses) ctx.buyRewards(i);
-    autoEarningRankReset();
+  // @ts-ignore
+  ctx.resetRank = (force) => {
+    resetRankBefore();
+    _resetRank(force);
+    resetRankAfter();
   };
+});
 
-  /* eslint-enable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/ban-ts-comment */
+function initialProcess() {
+  // カスタム領域追加
+  addCustomDiv();
 
-  // すべての発生器購入・時間加速器購入・段位リセットボタンを押す
-  function runBuyer() {
-    // confirm, alertを無視する
-    const confirmOrg = confirm;
-    const alertOrg = alert;
-    /* eslint-disable no-global-assign, @typescript-eslint/ban-ts-comment */
-    // @ts-ignore
-    confirm = () => true;
-    // @ts-ignore
-    alert = () => true;
-    /* eslint-enable no-global-assign, @typescript-eslint/ban-ts-comment */
+  thisButtons = new Buttons();
 
-    const genBuyerButton = document.getElementsByClassName(buyerButtonClass)[0];
-    const accBuyerButton = document.getElementsByClassName(buyerButtonClass)[1];
-    const levelResetBuyerButton =
-      document.getElementsByClassName(buyerButtonClass)[2];
-    const rankResetBuyerButton =
-      document.getElementsByClassName(buyerButtonClass)[3];
-    const levelItemBuyerButton =
-      document.getElementsByClassName(buyerButtonClass)[4];
+  // 前いた世界とタブを読み込む
+  const lastCurrentWorld = parseInt(
+    localStorage.getItem(lsKey.lastCurrentWorld) ?? ""
+  );
+  const lastCurrentTab = localStorage.getItem(lsKey.lastCurrentTab);
+  if (lastCurrentWorld) ctx.moveworld(lastCurrentWorld);
+  if (lastCurrentTab) ctx.changeTab(lastCurrentTab);
+}
+function intervalProcess() {
+  // 今いる世界とタブを保存する
+  localStorage.setItem(lsKey.lastCurrentWorld, ctx.world);
+  localStorage.setItem(lsKey.lastCurrentTab, ctx.player.currenttab);
 
-    // 昇階リセット
-    if (rankResetBuyerButton.classList.contains("selected")) {
-      const rBuyButton: HTMLElement | null = document.querySelector(
-        "#rankreset > button"
-      );
-      if (rBuyButton != null) {
-        rBuyButton.click();
-      }
-    }
+  autoLevelReset();
+  autoRankReset();
+  autoEarnRank();
+  autoBuy();
+  autoSelectReward();
+  autoSpendShine();
+  autoStartChallenge();
+}
+function updateBefore() {}
+function updateAfter() {}
+function resetLevelBefore() {
+  効力型保存();
+  効力型適用(効力型集.リセット稼ぎ, 上位効力型集.リセット稼ぎ);
+}
+function resetLevelAfter() {
+  保存効力型適用();
+}
+function resetRankBefore() {
+  // 効力型適用(効力型集.稼ぎ, 上位効力型集.稼ぎ);
+}
+function resetRankAfter() {}
 
-    // 昇段リセット
-    if (levelResetBuyerButton.classList.contains("selected")) {
-      const lBuyButton: HTMLElement | null = document.querySelector(
-        "#levelreset > button"
-      );
-      if (lBuyButton != null) {
-        lBuyButton.click();
-      }
-    }
+/**
+ * ボタンを作成する
+ *
+ * @param {string} label ラベル
+ * @param {string} buttonClass ボタン独自のクラス ボタン参照時に使う
+ * @param {(number | null)} [index=null] index インデックス localStorageのキー
+ * @return {*}
+ */
+function createButton(
+  label: string,
+  buttonClass: string,
+  index: number | null = null
+) {
+  // ボタン作成
+  const b = document.createElement("button");
+  b.type = "button";
+  b.textContent = label;
+  b.addEventListener("click", () => b.classList.toggle("selected"));
 
-    // 段位捧所
-    if (levelItemBuyerButton.classList.contains("selected")) {
-      const buttons = document.getElementsByClassName("lbutton");
+  // ボタン選択状態の読み込み保存機能
 
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-      for (let i = 5 - 1; i >= 0; i--) {
-        if (
-          i < buttons.length &&
-          !buttons[i].classList.contains("unavailable")
-        ) {
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-          ctx.buylevelitems(i);
-        }
-      }
-    }
+  const key = lsKey.generateButtonKey(buttonClass, index);
 
-    // 時間加速器
-    if (accBuyerButton.classList.contains("selected")) {
-      const buttons = document.getElementsByClassName("abutton");
-
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-      for (let i = ctx.player.accelerators.length - 1; i >= 0; i--) {
-        if (
-          i < buttons.length &&
-          !buttons[i].classList.contains("unavailable")
-        ) {
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-          ctx.buyAccelerator(i);
-          ctx.buyAccelerator(i);
-          ctx.buyAccelerator(i);
-          ctx.buyAccelerator(i);
-        }
-      }
-    }
-
-    // 発生器
-    if (genBuyerButton.classList.contains("selected")) {
-      const buttons = document.getElementsByClassName("gbutton");
-
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-      for (let i = ctx.player.generators.length - 1; i >= 0; i--) {
-        if (
-          i < buttons.length &&
-          !buttons[i].classList.contains("unavailable")
-        ) {
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-          ctx.buyGenerator(i);
-          ctx.buyGenerator(i);
-          ctx.buyGenerator(i);
-          ctx.buyGenerator(i);
-        }
-      }
-    }
-
-    /* eslint-disable no-global-assign, @typescript-eslint/ban-ts-comment */
-    // @ts-ignore
-    confirm = confirmOrg;
-    // @ts-ignore
-    alert = alertOrg;
-    /* eslint-enable no-global-assign, @typescript-eslint/ban-ts-comment */
+  // localStorageからclassを読み込む
+  const item = localStorage.getItem(key);
+  if (item) {
+    b.className = item;
+  } else {
+    b.classList.add("button", "autobuyerbutton", buttonClass);
   }
 
-  /** 自作自動購入機のボタンを作成する */
-  function createBuyerButton(
-    label: string,
-    buttonClass: string,
-    index: number | null
-  ) {
-    // ボタン作成
-    const b = document.createElement("button");
-    b.type = "button";
-    b.textContent = label;
-    b.addEventListener("click", () => b.classList.toggle("selected"));
+  // ボタンがクリックされたときclassをlocalStorageに保存する
+  b.addEventListener("click", () => {
+    localStorage.setItem(key, b.className);
+  });
 
-    // sessionStorageからclassを読み込む classの状態をsessionStorageに保存する
-    const key =
-      keyPrefix + buttonClass + (index != null ? index.toString() : "");
-    const dataItem = sessionStorage.getItem(key);
-    if (dataItem != null) {
-      b.className = dataItem;
-    } else {
-      b.classList.add("button", "autobuyerbutton", buttonClass);
-    }
-    b.addEventListener("click", () => {
-      sessionStorage.setItem(key, b.className);
-    });
+  return b;
+}
 
-    return b;
+function createInputForm(inputClass: string) {
+  // フォーム作成
+  const b = document.createElement("input");
+  b.type = "text";
+  b.value = "1";
+  b.classList.add(inputClass);
+
+  // フォーム選択状態の読み込み保存機能
+  const key = lsKey.generateButtonKey(inputClass);
+
+  // localStorageからclassを読み込む
+  const item = localStorage.getItem(key);
+  if (item) {
+    b.value = item;
   }
 
-  /** 自作自動購入機を有効にするボタンを追加する */
-  function addMyAutoBuyerButton() {
-    // 自動タブのdiv要素を取得する
-    // autoTabStringのテキストを含むdivを自動タブと判定する
-    const autoTabString = "自動購入器設定";
+  // フォームが変更されたときclassをlocalStorageに保存する
+  b.addEventListener("change", () => {
+    localStorage.setItem(key, b.value);
+  });
 
-    const container = document.getElementsByClassName("container")[0];
-    if (container === null) return;
-    const containerChildren = Array.from(container.children);
-    const autoTab = containerChildren.find(
-      (element) =>
-        element.textContent != null &&
-        element.textContent.indexOf(autoTabString) >= 0
+  return b;
+}
+
+function createTextArea(inputClass: string) {
+  // フォーム作成
+  const b = document.createElement("textarea");
+  b.value = "";
+  b.rows = 30;
+  b.cols = 80;
+  b.classList.add(inputClass);
+
+  // フォーム選択状態の読み込み保存機能
+  const key = lsKey.generateButtonKey(inputClass);
+
+  // localStorageからclassを読み込む
+  const item = localStorage.getItem(key);
+  if (item) {
+    b.value = item;
+  }
+
+  // フォームが変更されたときclassをlocalStorageに保存する
+  b.addEventListener("change", () => {
+    localStorage.setItem(key, b.value);
+  });
+
+  return b;
+}
+
+/**
+ * 自動タブのページに設定ボタンを追加する
+ */
+function addCustomDiv() {
+  // 自動タブのdiv要素を取得する
+  // autoTabStringのテキストを含むdivを自動タブと判定する
+  const autoTabString = "自動購入器設定";
+
+  const container = document.getElementsByClassName("container")[0];
+  if (!container) return;
+
+  const containerChildren = Array.from(container.children);
+  const autoTab = containerChildren.find(
+    (element) =>
+      element.textContent !== null &&
+      element.textContent.indexOf(autoTabString) >= 0
+  );
+
+  if (!autoTab) return;
+
+  // 自動タブにボタンを含む新たなdiv要素を追加する
+  {
+    /** 追加する要素全体 */
+    const additionalDiv = document.createElement("div");
+    additionalDiv.appendChild(
+      document.createTextNode("newincrementalgame-custom")
     );
-    if (autoTab === undefined) return;
+    autoTab.appendChild(additionalDiv);
 
-    // 自動タブにボタンを含む新たなdiv要素を追加する
+    /** 購入ボタン領域 */
     {
-      /** 追加する要素全体 */
-      const additionalDiv = document.createElement("div");
-      additionalDiv.appendChild(document.createElement("br"));
-      additionalDiv.appendChild(document.createTextNode("自作自動購入機設定"));
+      const d = document.createElement("div");
+      additionalDiv.appendChild(d);
 
-      const labels = [
-        "発生器",
-        "加速器",
-        "段位リセット",
-        "階位リセット",
-        "段位効力",
-      ];
-      const n_labels = labels.length;
+      d.appendChild(document.createTextNode("自動購入"));
+      d.appendChild(createButton("自動購入", "自動購入"));
+      d.appendChild(createButton("輝き消費", "輝き消費"));
+    }
 
-      /** 購入機有効ボタン領域 */
-      const buyerButtonDiv = document.createElement("div");
-      buyerButtonDiv.appendChild(document.createTextNode("自動購入設定"));
-      for (let i = 0; i < n_labels; i++) {
-        const b = createBuyerButton(labels[i], buyerButtonClass, i);
-        buyerButtonDiv.appendChild(b);
-      }
-      additionalDiv.appendChild(buyerButtonDiv);
+    /** 自動リセットボタン領域 */
+    {
+      const d = document.createElement("div");
+      additionalDiv.appendChild(d);
 
-      /** 購入機通知ボタン領域 */
-      const noticeButtonDiv = document.createElement("div");
-      noticeButtonDiv.appendChild(document.createTextNode("通知設定"));
-      for (let i = 0; i < n_labels; i++) {
-        const b = createBuyerButton(labels[i], noticeButtonClass, i);
-        if (i < 2) {
-          b.hidden = true;
-        }
-        noticeButtonDiv.appendChild(b);
-      }
-      additionalDiv.appendChild(noticeButtonDiv);
+      d.appendChild(document.createTextNode("自動リセット"));
+      d.appendChild(createButton("自動段位リセット", "自動段位リセット"));
+      d.appendChild(createInputForm("自動段位リセットIF"));
+      d.appendChild(createButton("自動階位リセット", "自動階位リセット"));
+      d.appendChild(createInputForm("自動階位リセットIF"));
+      d.appendChild(createButton("自動階位稼ぎ", "自動階位稼ぎ"));
+      d.appendChild(createInputForm("自動階位稼ぎIF"));
+    }
 
-      /** 昇階リセット後自動昇段リセット有効ボタン領域 */
-      const autoEnableLevelResetDiv = document.createElement("div");
-      autoEnableLevelResetDiv.appendChild(
-        document.createTextNode("昇階リセット後自動昇段リセット設定")
-      );
-      {
-        const b = createBuyerButton("変更", autoEnableLevelResetClass, null);
-        autoEnableLevelResetDiv.appendChild(b);
-      }
-      additionalDiv.appendChild(autoEnableLevelResetDiv);
+    /** 効力自動設定ボタン領域 */
+    {
+      const d = document.createElement("div");
+      additionalDiv.appendChild(d);
 
-      autoTab.appendChild(additionalDiv);
+      d.appendChild(document.createTextNode("効力自動設定"));
+      d.appendChild(createButton("効力自動設定", "効力自動設定"));
+    }
+
+    /** 挑戦自動開始ボタン領域 */
+    {
+      const d = document.createElement("div");
+      additionalDiv.appendChild(d);
+
+      d.appendChild(document.createTextNode("挑戦自動開始"));
+      d.appendChild(createButton("挑戦自動開始", "挑戦自動開始"));
+      d.appendChild(document.createElement("br"));
+      d.appendChild(createTextArea("挑戦自動開始TA"));
+    }
+
+    // /** 購入機通知ボタン領域 */
+    // {
+    //   const d = document.createElement("div");
+    //   additionalDiv.appendChild(d);
+
+    //   d.appendChild(document.createTextNode("通知設定"));
+    //   const b = createButton("挑戦達成", "achieveChallenge");
+    //   d.appendChild(b);
+    // }
+  }
+}
+
+function autoBuy() {
+  if (!buttonSelected(thisButtons.自動購入)) return;
+
+  // 階位アイテム
+  // 裏発生器
+  // 時間加速器
+  // 発生器
+
+  for (let i = thisButtons.levelItem.length - 1; i >= 0; i--) {
+    const button = thisButtons.levelItem[i] as HTMLButtonElement;
+    if (!button.classList.contains("unavailable")) {
+      button.click();
     }
   }
 
-  /** 通知機能を追加する */
-  function addNotice() {
-    const levelrcontents = document.getElementsByClassName("levelrcontents")[0];
-    const rankrcontents = document.getElementsByClassName("rankrcontents")[0];
+  for (let i = thisButtons.darkGenerator.length - 1; i >= 0; i--) {
+    const button = thisButtons.darkGenerator[i] as HTMLButtonElement;
+    if (!button.classList.contains("unavailable")) {
+      button.click();
+    }
+  }
 
-    if (levelrcontents !== undefined) {
-      levelrcontents.addEventListener("DOMNodeInserted", () => {
-        const lNoticeButton =
-          document.getElementsByClassName(noticeButtonClass)[2];
-        if (lNoticeButton.classList.contains("selected")) {
-          /* eslint-disable @typescript-eslint/no-unsafe-member-access, @typescript-eslint/ban-ts-comment */
+  for (let i = thisButtons.accelerator.length - 1; i >= 0; i--) {
+    const button = thisButtons.accelerator[i] as HTMLButtonElement;
+    if (!button.classList.contains("unavailable")) {
+      button.click();
+    }
+  }
+
+  for (let i = thisButtons.generator.length - 1; i >= 0; i--) {
+    const button = thisButtons.generator[i] as HTMLButtonElement;
+    if (!button.classList.contains("unavailable")) {
+      button.click();
+    }
+  }
+}
+
+function autoSpendShine() {
+  if (!buttonSelected(thisButtons.輝き消費)) return;
+
+  if (ctx.player.shine > 0) ctx.spendshine(1);
+  if (ctx.player.brightness > 0) ctx.spendbrightness(1);
+}
+
+function autoLevelReset() {
+  if (!buttonSelected(thisButtons.自動段位リセット)) return;
+
+  // @ts-ignore
+  let customBorder: string = thisButtons.自動段位リセットIF[0].value;
+  if (isNaN(Number(customBorder)) || customBorder === "") {
+    customBorder = "1";
+  }
+
+  const can = (() => {
+    if (ctx.player.money.greaterThanOrEqualTo(customBorder)) {
+      if (ctx.player.money.greaterThanOrEqualTo("1e18")) {
+        if (ctx.player.onchallenge && ctx.player.challenges.includes(0)) {
           // @ts-ignore
-          Push.create("昇段リセットしました。");
-          /* eslint-enable @typescript-eslint/no-unsafe-member-access, @typescript-eslint/ban-ts-comment */
+          // eslint-disable-next-line no-undef
+          if (ctx.player.money.lt(new Decimal("1e24"))) {
+            return false;
+          }
         }
+        return true;
+      }
+    }
+    return false;
+  })();
+
+  if (!can) return;
+
+  ignoreAlert(() => {
+    // @ts-ignore
+    ctx.resetLevel(false, false);
+  });
+}
+
+function autoRankReset() {
+  if (!buttonSelected(thisButtons.自動階位リセット)) return;
+
+  // @ts-ignore
+  let customBorder: string = thisButtons.自動階位リセットIF[0].value;
+  if (isNaN(Number(customBorder)) || customBorder === "") {
+    customBorder = "1";
+  }
+
+  const can = (() => {
+    if (ctx.player.money.greaterThanOrEqualTo(customBorder)) {
+      if (ctx.player.money.greaterThanOrEqualTo(ctx.resetRankborder())) {
+        if (ctx.player.onchallenge && ctx.player.challenges.includes(0)) {
+          // @ts-ignore
+          // eslint-disable-next-line no-undef
+          if (ctx.player.money.greaterThanOrEqualTo(ctx.resetRankborder())) {
+            return false;
+          }
+        }
+        return true;
+      }
+    }
+    return false;
+  })();
+
+  if (!can) return;
+
+  thisButtons.自動段位リセット[0]?.classList.add("selected");
+
+  ignoreAlert(() => {
+    // @ts-ignore
+    ctx.resetRank(false);
+  });
+}
+
+function autoEarnRank() {
+  if (!buttonSelected(thisButtons.自動階位稼ぎ)) return;
+
+  // @ts-ignore
+  let customBorder: string = thisButtons.自動階位稼ぎIF[0].value;
+  if (isNaN(Number(customBorder)) || customBorder === "") {
+    customBorder = "1";
+  }
+
+  if (ctx.player.levelresettime.greaterThanOrEqualTo(customBorder)) {
+    thisButtons.自動段位リセット[0]?.classList.remove("selected");
+  }
+}
+
+function clearChallangeBonus() {
+  for (let i = 0; i < 15; i++) {
+    if (ctx.player.challengebonuses.includes(i)) {
+      ctx.buyRewards(i);
+    }
+  }
+}
+
+function clearRankChallangeBonus() {
+  for (let i = 0; i < 15; i++) {
+    if (ctx.player.rankchallengebonuses.includes(i)) {
+      ctx.buyrankRewards(i);
+    }
+  }
+}
+
+const 効力型集 = {
+  tmp: [0],
+  リセット稼ぎ: [0, 1, 8, 12],
+  挑戦: [4, 2, 3, 7, 11, 13, 6, 10],
+  挑戦4: [4, 2, 3, 13, 7, 11, 6, 10],
+  通常: [2, 3, 7, 11, 13, 6, 10],
+};
+const 上位効力型集 = {
+  tmp: [0],
+  リセット稼ぎ: [0, 1, 8, 12],
+  通常: [2, 3, 4, 7, 10, 11, 9, 13],
+};
+
+function 効力型適用(rewardSet: number[], rankRewardSet: number[]) {
+  clearChallangeBonus();
+  clearRankChallangeBonus();
+
+  rewardSet.forEach((element) => {
+    ctx.buyRewards(element);
+  });
+  rankRewardSet.forEach((element) => {
+    ctx.buyrankRewards(element);
+  });
+}
+
+function 効力型保存() {
+  let 効力型: number[] = [];
+  let 上位効力型: number[] = [];
+  for (const i of ctx.player.challengebonuses) {
+    効力型.push(i);
+  }
+  for (const i of ctx.player.rankchallengebonuses) {
+    上位効力型.push(i);
+  }
+  効力型集.tmp = 効力型;
+  上位効力型集.tmp = 上位効力型;
+}
+
+function 保存効力型適用() {
+  効力型適用(効力型集.tmp, 上位効力型集.tmp);
+}
+
+/**
+ * 自動効力選択とモード選択
+ */
+function autoSelectReward() {
+  if (!buttonSelected(thisButtons.効力自動設定)) return;
+
+  // 自動効力選択
+
+  let 効力型 = 効力型集.通常;
+  let 上位効力型 = 上位効力型集.通常;
+
+  if (ctx.player.onchallenge) {
+    if (ctx.player.onchallenge && ctx.player.challenges.includes(3)) {
+      効力型 = 効力型集.挑戦4;
+    } else {
+      効力型 = 効力型集.挑戦;
+    }
+  }
+
+  上位効力型 = 上位効力型集.通常;
+  効力型適用(効力型, 上位効力型);
+
+  // モード選択
+  if (!ctx.player.challengebonuses.includes(13)) {
+    if (!(ctx.player.onchallenge && ctx.player.challenges.includes(3))) {
+      ctx.player.generatorsMode = [0, 1, 2, 3, 4, 5, 6, 7];
+    }
+  }
+}
+
+// 挑戦自動開始
+function autoStartChallenge() {
+  // ボタンが押されてない、挑戦中、段位タブが表示されてないなら、何もせず終了
+  if (!buttonSelected(thisButtons.挑戦自動開始)) return;
+  if (ctx.player.onchallenge) return;
+  if (!(ctx.player.levelresettime.gt(0) || ctx.player.rankresettime.gt(0)))
+    return;
+
+  // @ts-ignore
+  const operations: string[] = thisButtons.挑戦自動開始TA[0]?.value.split("\n");
+
+  operations.some((operation) => {
+    const a = operation.trim().split(/\s*,\s*/);
+    const an = a.map(Number).map((x) => x - 1);
+
+    if (a.includes("shrinkworld")) {
+      ignoreAlert(() => {
+        ctx.shrinkworld(ctx.world);
       });
     }
-    if (rankrcontents !== undefined) {
-      rankrcontents.addEventListener("DOMNodeInserted", () => {
-        const rNoticeButton =
-          document.getElementsByClassName(noticeButtonClass)[3];
-        if (rNoticeButton.classList.contains("selected")) {
-          /* eslint-disable @typescript-eslint/no-unsafe-member-access, @typescript-eslint/ban-ts-comment */
-          // @ts-ignore
-          Push.create("昇階リセットしました。");
-          /* eslint-enable @typescript-eslint/no-unsafe-member-access, @typescript-eslint/ban-ts-comment */
-        }
-      });
-    }
-  }
 
-  /** 昇階リセット後に自動昇段リセットボタンを押下状態に */
-  function autoEarningRankReset() {
-    const lBuyerButton = document.getElementsByClassName(buyerButtonClass)[2];
-    const autoEnableLevelResetClassButton = document.getElementsByClassName(
-      autoEnableLevelResetClass
-    )[0];
-    if (autoEnableLevelResetClassButton.classList.contains("selected"))
-      if (!lBuyerButton.classList.contains("selected")) {
-        lBuyerButton.click();
+    if (a.includes("rankresettime")) {
+      if (ctx.rankresettime.gt(0)) {
+        thisButtons.自動段位リセット[0]?.classList.add("selected");
+      } else {
+        thisButtons.自動段位リセット[0]?.classList.remove("selected");
+        thisButtons.自動階位リセット[0]?.classList.add("selected");
       }
-  }
+      return true;
+    }
 
-  function autoEarningLevelReset() {
-    const lBuyerButton = document.getElementsByClassName(buyerButtonClass)[2];
-    const autoEnableLevelResetClassButton = document.getElementsByClassName(
-      autoEnableLevelResetClass
-    )[0];
-    if (autoEnableLevelResetClassButton.classList.contains("selected")) {
-      if (ctx.player.levelresettime.toNumber() > 30000) {
-        if (lBuyerButton.classList.contains("selected")) {
-          Push.create("昇段リセット回数が貯まりました。");
-          lBuyerButton.click();
-        }
+    let isRankChallenge = a.includes("rank");
+
+    // eslint-disable-next-line no-unused-vars
+    const challengeId = ctx.getchallengeid(an);
+
+    if (challengeId === 0) {
+      return false;
+    }
+    if (!isRankChallenge && ctx.player.challengecleared.includes(challengeId)) {
+      return false;
+    }
+    if (
+      isRankChallenge &&
+      ctx.player.rankchallengecleared.includes(challengeId)
+    ) {
+      return false;
+    }
+
+    for (let i = 0; i < 8; i++) {
+      if (
+        (ctx.player.challenges.includes(i) || an.includes(i)) &&
+        !(ctx.player.challenges.includes(i) && an.includes(i))
+      ) {
+        ctx.configchallenge(i);
       }
     }
-  }
 
-  function addWikiLink() {
-    const container = document.getElementsByClassName("container")[0];
-    if (container != null) {
-      const div = document.createElement("div");
-      const link = document.createElement("a");
-      link.href = "https://w.atwiki.jp/newincrementalgame/";
-      link.textContent =
-        "新しい放置ゲーム(1).file【8/24更新】 | newincrementalgame";
-      link.style.color = "skyblue";
-      div.appendChild(link);
-      container.appendChild(div);
+    if (isRankChallenge) {
+      thisButtons.自動段位リセット[0]?.classList.remove("selected");
     }
-  }
-})();
+    ignoreAlert(() => {
+      ctx.startChallenge();
+    });
+    return true;
+  });
+}
