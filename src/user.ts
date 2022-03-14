@@ -599,19 +599,40 @@ function autoStartChallenge() {
     const an = a.map(Number).map((x) => x - 1);
 
     if (a.includes("shrinkworld")) {
+      const nowworld = ctx.world;
+      if (nowworld === 0) {
+        return false;
+      }
+
       ignoreAlert(() => {
-        ctx.shrinkworld(ctx.world);
+        ctx.moveworld(0);
+        ctx.shrinkworld(nowworld);
+        ctx.moveworld(nowworld);
       });
+      return true;
     }
 
     if (a.includes("rankresettime")) {
-      if (ctx.rankresettime.gt(0)) {
-        thisButtons.自動段位リセット[0]?.classList.add("selected");
+      if (ctx.player.rankresettime.gt(0)) {
+        return false;
       } else {
         thisButtons.自動段位リセット[0]?.classList.remove("selected");
         thisButtons.自動階位リセット[0]?.classList.add("selected");
       }
       return true;
+    }
+
+    if (a.includes("earnlevelreset")) {
+      // @ts-ignore
+      let customBorder: string = thisButtons.自動階位稼ぎIF[0].value;
+      if (isNaN(Number(customBorder)) || customBorder === "") {
+        customBorder = "1";
+      }
+
+      if (!ctx.player.levelresettime.greaterThanOrEqualTo(customBorder)) {
+        return true;
+      }
+      return false;
     }
 
     let isRankChallenge = a.includes("rank");
