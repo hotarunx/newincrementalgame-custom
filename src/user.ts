@@ -24,48 +24,40 @@ const lsKey = {
   },
 } as const;
 
-class Buttons {
-  /** 発生器購入ボタン */
-  generator;
-  /** 裏発生器購入ボタン */
-  darkGenerator;
-  /** 時間加速器購入ボタン */
-  accelerator;
-  /** 段位アイテム購入ボタン */
-  levelItem;
-  自動購入;
-  輝き消費;
-  自動段位リセット;
-  自動段位リセットIF;
-  自動階位リセット;
-  自動階位リセットIF;
-  自動階位稼ぎ;
-  自動階位稼ぎIF;
-  効力自動設定;
-  挑戦自動開始;
-  挑戦自動開始TA;
-  constructor() {
-    this.generator = document.querySelectorAll(".generator > button.gbutton");
-    this.darkGenerator = document.querySelectorAll(
-      ".darkgenerator > button.gbutton"
-    );
-    this.accelerator = document.querySelectorAll("button.abutton");
-    this.levelItem = document.querySelectorAll("button.lbutton");
-    this.自動購入 = document.getElementsByClassName("自動購入");
-    this.輝き消費 = document.getElementsByClassName("輝き消費");
-    this.自動段位リセット = document.getElementsByClassName("自動段位リセット");
-    this.自動段位リセットIF =
-      document.getElementsByClassName("自動段位リセットIF");
-    this.自動階位リセット = document.getElementsByClassName("自動階位リセット");
-    this.自動階位リセットIF =
-      document.getElementsByClassName("自動階位リセットIF");
-    this.自動階位稼ぎ = document.getElementsByClassName("自動階位稼ぎ");
-    this.自動階位稼ぎIF = document.getElementsByClassName("自動階位稼ぎIF");
-    this.効力自動設定 = document.getElementsByClassName("効力自動設定");
-    this.挑戦自動開始 = document.getElementsByClassName("挑戦自動開始");
-    this.挑戦自動開始TA = document.getElementsByClassName("挑戦自動開始TA");
-  }
-}
+const 効力型集 = {
+  tmp: [0],
+  リセット稼ぎ: [0, 1, 8, 12],
+  挑戦: [4, 2, 3, 7, 11, 13, 6, 10],
+  挑戦4: [4, 2, 3, 13, 7, 11, 6, 10],
+  通常: [2, 3, 7, 11, 13, 6, 10],
+};
+const 上位効力型集 = {
+  tmp: [0],
+  リセット稼ぎ: [0, 1, 8, 12],
+  通常: [2, 3, 4, 7, 10, 11, 9, 13],
+};
+
+const ボタン = {
+  発生器: () => document.querySelectorAll(".generator > button.gbutton"),
+  裏発生器: () => document.querySelectorAll(".darkgenerator > button.gbutton"),
+  時間加速器: () => document.querySelectorAll("button.abutton"),
+  段位効力: () => document.querySelectorAll("button.lbutton"),
+  自動購入: () => document.getElementsByClassName("自動購入"),
+  輝き消費: () => document.getElementsByClassName("輝き消費"),
+  自動段位リセット: () => document.getElementsByClassName("自動段位リセット"),
+  自動段位リセットIF: () =>
+    document.getElementsByClassName("自動段位リセットIF"),
+  自動階位リセット: () => document.getElementsByClassName("自動階位リセット"),
+  自動階位リセットIF: () =>
+    document.getElementsByClassName("自動階位リセットIF"),
+  自動段位リセット稼ぎ: () =>
+    document.getElementsByClassName("自動段位リセット稼ぎ"),
+  自動段位リセット稼ぎIF: () =>
+    document.getElementsByClassName("自動段位リセット稼ぎIF"),
+  効力自動設定: () => document.getElementsByClassName("効力自動設定"),
+  挑戦自動開始: () => document.getElementsByClassName("挑戦自動開始"),
+  挑戦自動開始TA: () => document.getElementsByClassName("挑戦自動開始TA"),
+};
 
 /**
  * ボタンが選択されているか
@@ -80,8 +72,6 @@ function buttonSelected(buttons: NodeList | HTMLCollection) {
   }
   return selected;
 }
-
-let thisButtons: Buttons;
 
 /** ゲームのインスタンス */
 const ctx = (() => {
@@ -128,14 +118,6 @@ window.addEventListener("load", function () {
   // 処理を定期実行するよう設定
   setInterval(intervalProcess, 100);
 
-  // updateメソッド修正
-  const _update = ctx.update.bind(ctx);
-  ctx.update = () => {
-    updateBefore();
-    _update();
-    updateAfter();
-  };
-
   // resetLevel（段位リセット）メソッド修正
   const _resetLevel = ctx.resetLevel.bind(ctx);
   // @ts-ignore
@@ -159,8 +141,6 @@ function initialProcess() {
   // カスタム領域追加
   addCustomDiv();
 
-  thisButtons = new Buttons();
-
   // 前いた世界とタブを読み込む
   const lastCurrentWorld = parseInt(
     localStorage.getItem(lsKey.lastCurrentWorld) ?? ""
@@ -169,6 +149,7 @@ function initialProcess() {
   if (lastCurrentWorld) ctx.moveworld(lastCurrentWorld);
   if (lastCurrentTab) ctx.changeTab(lastCurrentTab);
 }
+
 function intervalProcess() {
   // 今いる世界とタブを保存する
   localStorage.setItem(lsKey.lastCurrentWorld, ctx.world);
@@ -176,14 +157,12 @@ function intervalProcess() {
 
   autoLevelReset();
   autoRankReset();
-  autoEarnRank();
+  autoEarnLevelResetTime();
   autoBuy();
   autoSelectReward();
   autoSpendShine();
   autoStartChallenge();
 }
-function updateBefore() {}
-function updateAfter() {}
 function resetLevelBefore() {
   効力型保存();
   効力型適用(効力型集.リセット稼ぎ, 上位効力型集.リセット稼ぎ);
@@ -192,9 +171,12 @@ function resetLevelAfter() {
   保存効力型適用();
 }
 function resetRankBefore() {
-  // 効力型適用(効力型集.稼ぎ, 上位効力型集.稼ぎ);
+  効力型保存();
+  効力型適用(効力型集.リセット稼ぎ, 上位効力型集.リセット稼ぎ);
 }
-function resetRankAfter() {}
+function resetRankAfter() {
+  保存効力型適用();
+}
 
 /**
  * ボタンを作成する
@@ -333,8 +315,10 @@ function addCustomDiv() {
       d.appendChild(createInputForm("自動段位リセットIF"));
       d.appendChild(createButton("自動階位リセット", "自動階位リセット"));
       d.appendChild(createInputForm("自動階位リセットIF"));
-      d.appendChild(createButton("自動階位稼ぎ", "自動階位稼ぎ"));
-      d.appendChild(createInputForm("自動階位稼ぎIF"));
+      d.appendChild(
+        createButton("自動段位リセット稼ぎ", "自動段位リセット稼ぎ")
+      );
+      d.appendChild(createInputForm("自動段位リセット稼ぎIF"));
     }
 
     /** 効力自動設定ボタン領域 */
@@ -370,36 +354,36 @@ function addCustomDiv() {
 }
 
 function autoBuy() {
-  if (!buttonSelected(thisButtons.自動購入)) return;
+  if (!buttonSelected(ボタン.自動購入())) return;
 
   // 階位アイテム
   // 裏発生器
   // 時間加速器
   // 発生器
 
-  for (let i = thisButtons.levelItem.length - 1; i >= 0; i--) {
-    const button = thisButtons.levelItem[i] as HTMLButtonElement;
+  for (let i = ボタン.段位効力().length - 1; i >= 0; i--) {
+    const button = ボタン.段位効力()[i] as HTMLButtonElement;
     if (!button.classList.contains("unavailable")) {
       button.click();
     }
   }
 
-  for (let i = thisButtons.darkGenerator.length - 1; i >= 0; i--) {
-    const button = thisButtons.darkGenerator[i] as HTMLButtonElement;
+  for (let i = ボタン.裏発生器().length - 1; i >= 0; i--) {
+    const button = ボタン.裏発生器()[i] as HTMLButtonElement;
     if (!button.classList.contains("unavailable")) {
       button.click();
     }
   }
 
-  for (let i = thisButtons.accelerator.length - 1; i >= 0; i--) {
-    const button = thisButtons.accelerator[i] as HTMLButtonElement;
+  for (let i = ボタン.時間加速器().length - 1; i >= 0; i--) {
+    const button = ボタン.時間加速器()[i] as HTMLButtonElement;
     if (!button.classList.contains("unavailable")) {
       button.click();
     }
   }
 
-  for (let i = thisButtons.generator.length - 1; i >= 0; i--) {
-    const button = thisButtons.generator[i] as HTMLButtonElement;
+  for (let i = ボタン.発生器().length - 1; i >= 0; i--) {
+    const button = ボタン.発生器()[i] as HTMLButtonElement;
     if (!button.classList.contains("unavailable")) {
       button.click();
     }
@@ -407,17 +391,18 @@ function autoBuy() {
 }
 
 function autoSpendShine() {
-  if (!buttonSelected(thisButtons.輝き消費)) return;
+  if (!buttonSelected(ボタン.輝き消費())) return;
 
   if (ctx.player.shine > 0) ctx.spendshine(1);
   if (ctx.player.brightness > 0) ctx.spendbrightness(1);
 }
 
+/** ポイントが入力値以上だと段位リセットする */
 function autoLevelReset() {
-  if (!buttonSelected(thisButtons.自動段位リセット)) return;
+  if (!buttonSelected(ボタン.自動段位リセット())) return;
 
   // @ts-ignore
-  let customBorder: string = thisButtons.自動段位リセットIF[0].value;
+  let customBorder: string = ボタン.自動段位リセットIF()[0].value;
   if (isNaN(Number(customBorder)) || customBorder === "") {
     customBorder = "1";
   }
@@ -446,11 +431,12 @@ function autoLevelReset() {
   });
 }
 
+/** ポイントが入力値以上だと階位リセットする */
 function autoRankReset() {
-  if (!buttonSelected(thisButtons.自動階位リセット)) return;
+  if (!buttonSelected(ボタン.自動階位リセット())) return;
 
   // @ts-ignore
-  let customBorder: string = thisButtons.自動階位リセットIF[0].value;
+  let customBorder: string = ボタン.自動階位リセットIF()[0].value;
   if (isNaN(Number(customBorder)) || customBorder === "") {
     customBorder = "1";
   }
@@ -473,7 +459,7 @@ function autoRankReset() {
 
   if (!can) return;
 
-  thisButtons.自動段位リセット[0]?.classList.add("selected");
+  ボタン.自動段位リセット()[0]?.classList.add("selected");
 
   ignoreAlert(() => {
     // @ts-ignore
@@ -481,17 +467,20 @@ function autoRankReset() {
   });
 }
 
-function autoEarnRank() {
-  if (!buttonSelected(thisButtons.自動階位稼ぎ)) return;
+/** 段位リセット回数が入力値以上だと自動段位リセットを無効化する */
+function autoEarnLevelResetTime() {
+  if (!buttonSelected(ボタン.自動段位リセット稼ぎ())) return;
 
   // @ts-ignore
-  let customBorder: string = thisButtons.自動階位稼ぎIF[0].value;
+  let customBorder: string = ボタン.自動段位リセット稼ぎIF()[0].value;
   if (isNaN(Number(customBorder)) || customBorder === "") {
     customBorder = "1";
   }
 
   if (ctx.player.levelresettime.greaterThanOrEqualTo(customBorder)) {
-    thisButtons.自動段位リセット[0]?.classList.remove("selected");
+    ボタン.自動段位リセット()[0]?.classList.remove("selected");
+  } else {
+    ボタン.自動段位リセット()[0]?.classList.add("selected");
   }
 }
 
@@ -510,19 +499,6 @@ function clearRankChallangeBonus() {
     }
   }
 }
-
-const 効力型集 = {
-  tmp: [0],
-  リセット稼ぎ: [0, 1, 8, 12],
-  挑戦: [4, 2, 3, 7, 11, 13, 6, 10],
-  挑戦4: [4, 2, 3, 13, 7, 11, 6, 10],
-  通常: [2, 3, 7, 11, 13, 6, 10],
-};
-const 上位効力型集 = {
-  tmp: [0],
-  リセット稼ぎ: [0, 1, 8, 12],
-  通常: [2, 3, 4, 7, 10, 11, 9, 13],
-};
 
 function 効力型適用(rewardSet: number[], rankRewardSet: number[]) {
   clearChallangeBonus();
@@ -557,7 +533,7 @@ function 保存効力型適用() {
  * 自動効力選択とモード選択
  */
 function autoSelectReward() {
-  if (!buttonSelected(thisButtons.効力自動設定)) return;
+  if (!buttonSelected(ボタン.効力自動設定())) return;
 
   // 自動効力選択
 
@@ -583,22 +559,31 @@ function autoSelectReward() {
   }
 }
 
-// 挑戦自動開始
+/** 挑戦自動開始に書かれた挑戦を実行する */
 function autoStartChallenge() {
   // ボタンが押されてない、挑戦中、段位タブが表示されてないなら、何もせず終了
-  if (!buttonSelected(thisButtons.挑戦自動開始)) return;
+  if (!buttonSelected(ボタン.挑戦自動開始())) return;
   if (ctx.player.onchallenge) return;
   if (!(ctx.player.levelresettime.gt(0) || ctx.player.rankresettime.gt(0)))
     return;
 
+  // 挑戦自動開始のプログラムを取得
   // @ts-ignore
-  const operations: string[] = thisButtons.挑戦自動開始TA[0]?.value.split("\n");
+  const program: string[] = ボタン.挑戦自動開始TA()[0]?.value.split("\n");
 
-  operations.some((operation) => {
-    const a = operation.trim().split(/\s*,\s*/);
-    const an = a.map(Number).map((x) => x - 1);
+  // 命令、いわゆるプログラムの各行を走査
+  // 命令が実行可能ならtrueを返して終了
+  program.some((rawOperation) => {
+    /** カンマで区切られた命令の各要素 */
+    const operation = rawOperation.trim().split(/\s*,\s*/);
+    /** 命令の数値のみ */
+    const numOperation = operation
+      .map(Number)
+      .filter(Boolean)
+      .map((x) => x - 1);
 
-    if (a.includes("shrinkworld")) {
+    // 世界を収縮する命令
+    if (operation.includes("shrinkworld")) {
       const nowworld = ctx.world;
       if (nowworld === 0) {
         return false;
@@ -612,33 +597,41 @@ function autoStartChallenge() {
       return true;
     }
 
-    if (a.includes("rankresettime")) {
-      if (ctx.player.rankresettime.gt(0)) {
-        return false;
-      } else {
-        thisButtons.自動段位リセット[0]?.classList.remove("selected");
-        thisButtons.自動階位リセット[0]?.classList.add("selected");
-      }
-      return true;
-    }
-
-    if (a.includes("earnlevelreset")) {
+    // 段位リセット回数を稼ぐ
+    if (operation.includes("earnlevelreset")) {
       // @ts-ignore
-      let customBorder: string = thisButtons.自動階位稼ぎIF[0].value;
+      let customBorder = numOperation[0]?.toString();
       if (isNaN(Number(customBorder)) || customBorder === "") {
         customBorder = "1";
       }
 
       if (!ctx.player.levelresettime.greaterThanOrEqualTo(customBorder)) {
+        ボタン.自動段位リセット()[0]?.classList.add("selected");
         return true;
       }
       return false;
     }
 
-    let isRankChallenge = a.includes("rank");
+    // 階位リセット回数を稼ぐ
+    if (operation.includes("earnrankreset")) {
+      // @ts-ignore
+      let customBorder = numOperation[0]?.toString();
+      if (isNaN(Number(customBorder)) || customBorder === "") {
+        customBorder = "1";
+      }
+
+      if (!ctx.player.rankresettime.greaterThanOrEqualTo(customBorder)) {
+        ボタン.自動段位リセット()[0]?.classList.remove("selected");
+        ボタン.自動階位リセット()[0]?.classList.add("selected");
+        return true;
+      }
+      return false;
+    }
+
+    let isRankChallenge = operation.includes("rank");
 
     // eslint-disable-next-line no-unused-vars
-    const challengeId = ctx.getchallengeid(an);
+    const challengeId = ctx.getchallengeid(numOperation);
 
     if (challengeId === 0) {
       return false;
@@ -655,15 +648,15 @@ function autoStartChallenge() {
 
     for (let i = 0; i < 8; i++) {
       if (
-        (ctx.player.challenges.includes(i) || an.includes(i)) &&
-        !(ctx.player.challenges.includes(i) && an.includes(i))
+        (ctx.player.challenges.includes(i) || numOperation.includes(i)) &&
+        !(ctx.player.challenges.includes(i) && numOperation.includes(i))
       ) {
         ctx.configchallenge(i);
       }
     }
 
     if (isRankChallenge) {
-      thisButtons.自動段位リセット[0]?.classList.remove("selected");
+      ボタン.自動段位リセット()[0]?.classList.remove("selected");
     }
     ignoreAlert(() => {
       ctx.startChallenge();
