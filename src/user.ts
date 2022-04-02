@@ -158,10 +158,13 @@ function intervalProcess() {
   autoLevelReset();
   autoRankReset();
   autoEarnLevelResetTime();
-  autoBuy();
-  autoSelectReward();
-  autoSpendShine();
-  autoStartChallenge();
+
+  setTimeout(() => {
+    autoBuy();
+    autoSelectReward();
+    autoSpendShine();
+    autoStartChallenge();
+  }, 10);
 }
 function resetLevelBefore() {
   効力型保存();
@@ -393,8 +396,8 @@ function autoBuy() {
 function autoSpendShine() {
   if (!buttonSelected(ボタン.輝き消費())) return;
 
-  if (ctx.player.shine > 0) ctx.spendshine(1);
-  if (ctx.player.brightness > 0) ctx.spendbrightness(1);
+  if (ctx.player.shine > 10) ctx.spendshine(1);
+  if (ctx.player.brightness > 10) ctx.spendbrightness(1);
 }
 
 /** ポイントが入力値以上だと段位リセットする */
@@ -444,13 +447,6 @@ function autoRankReset() {
   const can = (() => {
     if (ctx.player.money.greaterThanOrEqualTo(customBorder)) {
       if (ctx.player.money.greaterThanOrEqualTo(ctx.resetRankborder())) {
-        if (ctx.player.onchallenge && ctx.player.challenges.includes(0)) {
-          // @ts-ignore
-          // eslint-disable-next-line no-undef
-          if (ctx.player.money.greaterThanOrEqualTo(ctx.resetRankborder())) {
-            return false;
-          }
-        }
         return true;
       }
     }
@@ -459,11 +455,15 @@ function autoRankReset() {
 
   if (!can) return;
 
-  ボタン.自動段位リセット()[0]?.classList.add("selected");
+  if (!ボタン.自動段位リセット()[0]?.classList.contains("selected")) {
+    // @ts-ignore
+    ボタン.自動段位リセット()[0]?.click();
+  }
+
 
   ignoreAlert(() => {
     // @ts-ignore
-    ctx.resetRank(false);
+    ctx.resetRank(true);
   });
 }
 
@@ -478,9 +478,10 @@ function autoEarnLevelResetTime() {
   }
 
   if (ctx.player.levelresettime.greaterThanOrEqualTo(customBorder)) {
-    ボタン.自動段位リセット()[0]?.classList.remove("selected");
-  } else {
-    ボタン.自動段位リセット()[0]?.classList.add("selected");
+    if (ボタン.自動段位リセット()[0]?.classList.contains("selected")) {
+      // @ts-ignore
+      ボタン.自動段位リセット()[0]?.click();
+    }
   }
 }
 
@@ -582,22 +583,62 @@ function autoStartChallenge() {
       .filter(Boolean)
       .map((x) => x - 1);
 
-    // 世界を収縮する命令
-    if (operation.includes("shrinkworld")) {
-      const nowworld = ctx.world;
-      if (nowworld === 0) {
-        return false;
-      }
+    // // 世界を収縮する命令
+    // if (operation.includes("shrinkworld")) {
+    //   const nowworld = ctx.world;
+    //   if (nowworld === 0) {
+    //     return false;
+    //   }
 
-      ignoreAlert(() => {
-        ctx.moveworld(0);
-        ctx.shrinkworld(nowworld);
-        ctx.moveworld(nowworld);
-      });
-      return true;
-    }
+    //   ignoreAlert(() => {
+    //     ctx.moveworld(0);
+    //     ctx.shrinkworld(nowworld);
+    //     ctx.moveworld(nowworld);
+    //   });
+    //   return true;
+    // }
 
     // 段位リセット回数を稼ぐ
+    if (operation.includes("earnlevelresettime")) {
+      // @ts-ignore
+      let customBorder = numOperation[0]?.toString();
+      if (isNaN(Number(customBorder)) || customBorder === "") {
+        customBorder = "1";
+      }
+
+      if (!ctx.player.levelresettime.greaterThan(customBorder)) {
+        if (!ボタン.自動段位リセット()[0]?.classList.contains("selected")) {
+          // @ts-ignore
+          ボタン.自動段位リセット()[0]?.click();
+        }
+        return true;
+      }
+      return false;
+    }
+
+    // 階位リセット回数を稼ぐ
+    if (operation.includes("earnrankresettime")) {
+      // @ts-ignore
+      let customBorder = numOperation[0]?.toString();
+      if (isNaN(Number(customBorder)) || customBorder === "") {
+        customBorder = "1";
+      }
+
+      if (!ctx.player.rankresettime.greaterThan(customBorder)) {
+        if (ボタン.自動段位リセット()[0]?.classList.contains("selected")) {
+          // @ts-ignore
+          ボタン.自動段位リセット()[0]?.click();
+        }
+        if (!ボタン.自動階位リセット()[0]?.classList.contains("selected")) {
+          // @ts-ignore
+          ボタン.自動階位リセット()[0]?.click();
+        }
+        return true;
+      }
+      return false;
+    }
+
+    // 段位を稼ぐ
     if (operation.includes("earnlevelreset")) {
       // @ts-ignore
       let customBorder = numOperation[0]?.toString();
@@ -605,14 +646,17 @@ function autoStartChallenge() {
         customBorder = "1";
       }
 
-      if (!ctx.player.levelresettime.greaterThanOrEqualTo(customBorder)) {
-        ボタン.自動段位リセット()[0]?.classList.add("selected");
+      if (!ctx.player.level.greaterThan(customBorder)) {
+        if (!ボタン.自動段位リセット()[0]?.classList.contains("selected")) {
+          // @ts-ignore
+          ボタン.自動段位リセット()[0]?.click();
+        }
         return true;
       }
       return false;
     }
 
-    // 階位リセット回数を稼ぐ
+    // 階位を稼ぐ
     if (operation.includes("earnrankreset")) {
       // @ts-ignore
       let customBorder = numOperation[0]?.toString();
@@ -620,9 +664,15 @@ function autoStartChallenge() {
         customBorder = "1";
       }
 
-      if (!ctx.player.rankresettime.greaterThanOrEqualTo(customBorder)) {
-        ボタン.自動段位リセット()[0]?.classList.remove("selected");
-        ボタン.自動階位リセット()[0]?.classList.add("selected");
+      if (!ctx.player.rank.greaterThan(customBorder)) {
+        if (ボタン.自動段位リセット()[0]?.classList.contains("selected")) {
+          // @ts-ignore
+          ボタン.自動段位リセット()[0]?.click();
+        }
+        if (!ボタン.自動階位リセット()[0]?.classList.contains("selected")) {
+          // @ts-ignore
+          ボタン.自動階位リセット()[0]?.click();
+        }
         return true;
       }
       return false;
@@ -656,7 +706,10 @@ function autoStartChallenge() {
     }
 
     if (isRankChallenge) {
-      ボタン.自動段位リセット()[0]?.classList.remove("selected");
+      if (ボタン.自動段位リセット()[0]?.classList.contains("selected")) {
+        // @ts-ignore
+        ボタン.自動段位リセット()[0]?.click();
+      }
     }
     ignoreAlert(() => {
       ctx.startChallenge();
